@@ -28,6 +28,9 @@ import javax.inject.Inject;
 import org.geowe.client.local.ImageProvider;
 import org.geowe.client.local.initializer.URLVectorLayerInitializer;
 import org.geowe.client.local.main.AnchorBuilder;
+import org.geowe.client.local.messages.UIMessages;
+import org.geowe.client.local.sgf.SGFLoginServiceProxy;
+import org.slf4j.Logger;
 
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.safehtml.shared.SafeHtml;
@@ -36,11 +39,14 @@ import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasVerticalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
+import com.google.gwt.user.client.ui.VerticalPanel;
 import com.sencha.gxt.core.client.XTemplates;
 import com.sencha.gxt.widget.core.client.Dialog;
 import com.sencha.gxt.widget.core.client.Dialog.PredefinedButton;
 import com.sencha.gxt.widget.core.client.event.SelectEvent;
 import com.sencha.gxt.widget.core.client.event.SelectEvent.SelectHandler;
+import com.sencha.gxt.widget.core.client.form.PasswordField;
+import com.sencha.gxt.widget.core.client.form.TextField;
 
 /**
  * 
@@ -51,7 +57,14 @@ import com.sencha.gxt.widget.core.client.event.SelectEvent.SelectHandler;
 public class Welcome {
 
 	@Inject
+	private Logger logger;
+	@Inject
 	private URLVectorLayerInitializer uRLVectorLayerInitializer;
+	@Inject
+	private SGFLoginServiceProxy sgfLoginServiceProxy;
+	
+	private TextField userNameField;
+	private PasswordField passwordField;
 
 	public interface WelcomeTemplate extends XTemplates {
 		@XTemplate(source = "welcomeTemplate.html")
@@ -70,27 +83,61 @@ public class Welcome {
 		simple.setBodyStyleName("pad-text");
 		simple.getBody().addClassName("pad-text");
 		simple.add(getPanel(getHtml()));
-		simple.getButton(PredefinedButton.OK).addSelectHandler(
-				new SelectHandler() {
-					@Override
-					public void onSelect(final SelectEvent event) {
-						uRLVectorLayerInitializer.createLayerFromURL();
-					}
-				});
+		simple.getButton(PredefinedButton.OK).addSelectHandler(new SelectHandler() {
+			@Override
+			public void onSelect(final SelectEvent event) {
+				uRLVectorLayerInitializer.createLayerFromURL();
+				logger.info("ok pressed...");
+				// TODO: comprobar campos (que no sean vacios)
+				String userName = userNameField.getText();
+				String passwd = passwordField.getText();
+				// TODO: montar el payload de una menera menos cutre
+				String payload = "{\"username\":\"" + userName + "\",\"password\": \"" + passwd + "\"}";
+
+				sgfLoginServiceProxy.login(payload);
+			}
+		});
 		simple.show();
 	}
+	
 
 	private HorizontalPanel getPanel(final HTML data) {
 		HorizontalPanel panel = new HorizontalPanel();
 		panel.setSize("520px", "310px");
 		panel.setSpacing(5);
 		panel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
+		
+		
+
+		panel.add(getAuthenticationPanel());
+		panel.add(data);
+		return panel;
+	}
+	
+	private VerticalPanel getAuthenticationPanel(){
+		final VerticalPanel panel = new VerticalPanel();
+		
+		panel.setWidth("150px");		
+		panel.setSpacing(10);
 		Anchor anchor = new AnchorBuilder().setHref("http://www.geowe.org")
 				.setImage(new Image(ImageProvider.INSTANCE.geoweSquareLogo()))
 				.build();
-
 		panel.add(anchor);
-		panel.add(data);
+		
+		userNameField = new TextField();
+		userNameField.setTitle(UIMessages.INSTANCE.gitHubUserNameField());
+		userNameField.setEmptyText(UIMessages.INSTANCE.gitHubUserNameField());
+		userNameField.setWidth(120);
+		userNameField.setAllowBlank(false);
+		panel.add(userNameField);
+
+		passwordField = new PasswordField();		
+		passwordField.setTitle(UIMessages.INSTANCE.gitHubPasswordField());
+		passwordField.setEmptyText(UIMessages.INSTANCE.gitHubPasswordField());
+		passwordField.setWidth(120);
+		passwordField.setAllowBlank(false);
+		panel.add(passwordField);
+		
 		return panel;
 	}
 
